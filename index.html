@@ -69,8 +69,8 @@ main{flex:1;padding:16px 20px 28px;display:flex;flex-direction:column;gap:14px}
 nav{position:sticky;bottom:0;display:flex;background:var(--panel);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
 nav button{flex:1;height:56px;border:0;border-top:3px solid transparent;background:transparent;font-size:15px;font-weight:600;color:var(--muted)}
 nav button[aria-pressed=true]{color:var(--accent);border-top-color:var(--accent)}
-#install{display:none;align-self:flex-start;height:40px;padding:0 16px;border-radius:20px;border:1px solid #22304a;background:var(--field);color:var(--ink);font-size:14px;font-weight:600}
-#ios{display:none;font-size:13px;line-height:1.45;color:var(--muted);background:var(--field);border:1px solid #1a2438;border-radius:10px;padding:10px 12px}
+#install{display:inline-block;align-self:flex-start;height:40px;padding:0 16px;border-radius:20px;border:1px solid #22304a;background:var(--field);color:var(--ink);font-size:14px;font-weight:600}
+#help{display:none;font-size:13px;line-height:1.45;color:var(--muted);background:var(--field);border:1px solid #1a2438;border-radius:10px;padding:10px 12px}
 </style>
 </head>
 <body>
@@ -82,7 +82,7 @@ nav button[aria-pressed=true]{color:var(--accent);border-top-color:var(--accent)
 <p class="sub">Calculate bumper plates loaded on each sleeve with standard Olympic weight colors.</p>
 </div>
 <button id="install" type="button">Install app</button>
-<div id="ios">To install: tap the Share button in Safari, then Add to Home Screen.</div>
+<div id="help" role="status"></div>
 <div class="field">
 <label for="w">Total Target Weight (separate several with commas)</label>
 <input id="w" type="text" inputmode="text" placeholder="e.g. 135, 225, 315" autocomplete="off">
