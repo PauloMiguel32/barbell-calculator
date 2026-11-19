@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Barbell Calculator</title>
+<meta name="theme-color" content="#02040a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Barbell">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+:root{--bg:#02040a;--panel:#050914;--line:#141d30;--field:#0b1220;--muted:#8a98b3;--dim:#6f7f9e;--accent:#00aaff;--ink:#f3f4f6}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg)}
+body{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);-webkit-text-size-adjust:100%}
+button,input{font-family:inherit}
+button{cursor:pointer}
+.cond{font-family:Oswald,"Arial Narrow","Roboto Condensed",Impact,sans-serif}
+.app{max-width:560px;margin:0 auto;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+header{padding:calc(28px + env(safe-area-inset-top,0px)) 20px 16px;display:flex;flex-direction:column;gap:16px;border-bottom:1px solid #121a2c}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
+h1{margin:6px 0;font-weight:700;font-size:30px;letter-spacing:.02em;text-transform:uppercase}
+.sub{margin:0;font-size:13px;line-height:1.45;color:var(--muted)}
+label,.lbl{font-size:13px;font-weight:500;color:var(--muted)}
+.field{display:flex;flex-direction:column;gap:8px}
+#w{height:52px;padding:0 14px;font-size:20px;font-weight:600;color:var(--ink);background:var(--field);border:2px solid #22304a;border-radius:10px;outline:none}
+#w:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.two{display:flex;gap:12px}
+.two>div{flex:1;display:flex;flex-direction:column;gap:6px}
+.seg{display:flex;background:var(--field);border-radius:10px;padding:3px;gap:3px}
+.seg button{flex:1;height:44px;border:0;border-radius:8px;font-size:16px;font-weight:600;background:transparent;color:#d5dae1}
+.seg button[aria-pressed=true]{background:var(--accent);color:#04101a}
+main{flex:1;padding:16px 20px 28px;display:flex;flex-direction:column;gap:14px}
+.head{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:14px;background:var(--field);border:1px solid #1a2438;font-size:13px;font-weight:600}
+.chip i{width:10px;height:10px;border-radius:50%}
+.count{font-size:13px;font-weight:600;color:var(--muted)}
+.msg{margin:24px 0 0;text-align:center;font-size:15px;line-height:1.5;color:var(--muted)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 14px 14px;display:flex;flex-direction:column;gap:12px}
+.card .top{display:flex;align-items:baseline;justify-content:space-between}
+.card .top b{font-weight:600;font-size:22px;line-height:1}
+.card .top span{font-size:12px;font-weight:500;color:var(--muted)}
+.cap{text-align:center;font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--dim)}
+.big{text-align:center;font-weight:700;font-size:46px;line-height:1.1;text-transform:uppercase;color:var(--accent)}
+.pill{text-align:center;padding:14px 12px;border-radius:12px;background:#0a1224;border:1px solid #1a2438;font-size:14px;font-weight:700;color:#dfe6f2}
+.warn{font-size:14px;color:#f2b36b}
+.bar{container-type:inline-size;width:100%;filter:drop-shadow(0 6px 5px rgba(0,0,0,.55))}
+.barrow{display:flex;align-items:center;height:22cqw}
+.sleeve{flex:1 1 0;min-width:0;display:flex;align-items:center}
+.stub{flex:1;min-width:1cqw;height:3cqw;background:linear-gradient(180deg,#f4f7fb 0%,#aeb8c6 48%,#e3e9f1 70%,#7c8696 100%)}
+.sleeve:first-child .stub{border-radius:2px 0 0 2px}.sleeve:last-child .stub{border-radius:0 2px 2px 0}
+.collar{flex:none;width:1.4cqw;height:4.4cqw;border-radius:2px;background:linear-gradient(180deg,#f4f7fb 0%,#9aa5b5 55%,#cfd6e1 100%)}
+.shaft{flex:none;width:59.5cqw;height:1.8cqw;background:repeating-linear-gradient(45deg,#8b95a4 0,#8b95a4 2px,#e9eef5 2px,#e9eef5 4px)}
+.plate{position:relative;overflow:hidden;flex:none;min-width:3px;border-radius:2px;margin:0 .5px;display:flex;justify-content:center;padding-top:6px}
+.plate span{writing-mode:vertical-rl;transform:rotate(180deg);font-size:8px;font-weight:700;line-height:1}
+.plate i{position:absolute;left:0;right:0;top:calc(50% - .8cqw);height:1.6cqw;background:rgba(0,0,0,.28)}
+.grid{display:grid;grid-template-columns:56px minmax(0,1fr) minmax(0,1.5fr);gap:8px;align-items:center;padding:12px 8px;border-bottom:1px solid #101828;border-radius:8px}
+.grid.h{padding:8px;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);border-bottom:1px solid #1a2438}
+.grid.hl{background:#0a1730}
+.grid .p,.grid .wt{font-weight:600;font-size:20px}
+.grid .pl{font-size:13px;font-weight:600;line-height:1.35;color:#c9d3e6}
+.note{margin:12px 8px 8px;font-size:12px;line-height:1.5;color:var(--muted)}
+nav{position:sticky;bottom:0;display:flex;background:var(--panel);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav button{flex:1;height:56px;border:0;border-top:3px solid transparent;background:transparent;font-size:15px;font-weight:600;color:var(--muted)}
+nav button[aria-pressed=true]{color:var(--accent);border-top-color:var(--accent)}
+#install{display:none;align-self:flex-start;height:40px;padding:0 16px;border-radius:20px;border:1px solid #22304a;background:var(--field);color:var(--ink);font-size:14px;font-weight:600}
+#ios{display:none;font-size:13px;line-height:1.45;color:var(--muted);background:var(--field);border:1px solid #1a2438;border-radius:10px;padding:10px 12px}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+<div>
+<div class="eyebrow">CrossFit Cainta East Ortigas</div>
+<h1 class="cond">Olympic Barbell Calculator</h1>
+<p class="sub">Calculate bumper plates loaded on each sleeve with standard Olympic weight colors.</p>
+</div>
+<button id="install" type="button">Install app</button>
+<div id="ios">To install: tap the Share button in Safari, then Add to Home Screen.</div>
+<div class="field">
+<label for="w">Total Target Weight (separate several with commas)</label>
+<input id="w" type="text" inputmode="text" placeholder="e.g. 135, 225, 315" autocomplete="off">
+</div>
+<div class="two">
+<div><span class="lbl">Unit</span><div class="seg" id="units"></div></div>
+<div><span class="lbl">Barbell Weight</span><div class="seg" id="bars"></div></div>
+</div>
+</header>
+<main id="main"></main>
+<nav id="tabs"></nav>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
