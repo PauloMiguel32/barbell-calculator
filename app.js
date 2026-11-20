@@ -11,7 +11,7 @@ let state = { unit: 'lb', bar: 45, text: '135, 225, 315', page: 'calc' };
 try {
   const s = JSON.parse(localStorage.getItem(KEY) || 'null');
   if (s && SETS[s.unit] && BAR_OPTS[s.unit].includes(s.bar) && typeof s.text === 'string') {
-    state = { unit: s.unit, bar: s.bar, text: s.text.slice(0, 120), page: s.page === 'pct' ? 'pct' : 'calc' };
+    state = { unit: s.unit, bar: s.bar, text: s.text.slice(0, 120), page: ['pct', 'ladder'].includes(s.page) ? s.page : 'calc' };
   }
 } catch (e) {}
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
@@ -32,6 +32,91 @@ const loadFor = (w) => {
     if (n > 0) { left -= n * s; counts.push({ n, size, d, t, color }); }
   });
   return { counts, left };
+};
+
+// Ladder planner: picks the plate combination at each step that needs the fewest plate moves from the previous step.
+const ladderData = (nums, plates, bar, unit, fmt) => {
+  const L = { ok: false, hasMsg: false, msg: '', steps: [], big: '', summary: '' };
+  if (nums.length < 2) { L.hasMsg = true; L.msg = 'A ladder needs at least 2 weights, in the order you lift them. Type them in the box, for example 135, 155, 175, 195.'; return L; }
+  const sizes = plates.map((p) => Math.round(p[0] * 100));
+  const sum = (v) => v.reduce((a, b) => a + b, 0);
+  const cost = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]); return s; };
+  const enumerate = (target) => {
+    const out = [], cur = new Array(sizes.length).fill(0);
+    const rec = (i, rem, used) => {
+      if (out.length >= 3000) return;
+      if (i === sizes.length) { if (rem === 0) out.push(cur.slice()); return; }
+      const max = Math.min(Math.floor(rem / sizes[i]), 10 - used);
+      for (let n = max; n >= 0; n--) { cur[i] = n; rec(i + 1, rem - n * sizes[i], used + n); }
+      cur[i] = 0;
+    };
+    rec(0, target, 0);
+    out.sort((a, b) => sum(a) - sum(b));
+    return out.slice(0, 300);
+  };
+  const cands = [], greedy = [];
+  for (let i = 0; i < nums.length; i++) {
+    const w = nums[i];
+    const target = Math.round((w - bar) * 50);
+    const list = w < bar ? [] : enumerate(target);
+    if (!list.length) {
+      L.hasMsg = true;
+      L.msg = fmt(w) + ' ' + unit + (w < bar ? ' is lighter than the bar.' : ' cannot be loaded exactly with these plates.') + ' Fix or remove it to see the ladder.';
+      return L;
+    }
+    cands.push(list);
+    let rem = target;
+    const g = sizes.map((s) => { const n = Math.floor(rem / s); rem -= n * s; return n; });
+    greedy.push(rem === 0 ? g : list[0]);
+  }
+  const layers = [];
+  let prev = cands[0].map((v) => ({ c: sum(v) * 1.001, f: -1 }));
+  layers.push(prev);
+  for (let k = 1; k < cands.length; k++) {
+    const cur = cands[k].map((v) => {
+      let best = Infinity, bi = 0;
+      for (let j = 0; j < cands[k - 1].length; j++) {
+        const c = prev[j].c + cost(cands[k - 1][j], v);
+        if (c < best) { best = c; bi = j; }
+      }
+      return { c: best + sum(v) * 0.001, f: bi };
+    });
+    layers.push(cur);
+    prev = cur;
+  }
+  let bi = 0;
+  prev.forEach((s, i) => { if (s.c < prev[bi].c) bi = i; });
+  const pick = new Array(cands.length);
+  for (let k = cands.length - 1; k >= 0; k--) { pick[k] = bi; bi = layers[k][bi].f; }
+  const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+  let before = new Array(sizes.length).fill(0), total = 0, base = 0, gb = before;
+  greedy.forEach((v) => { base += cost(gb, v); gb = v; });
+  for (let k = 0; k < cands.length; k++) {
+    const v = cands[k][pick[k]], moves = [];
+    let n = 0;
+    plates.forEach(([size], i) => {
+      const d = v[i] - before[i];
+      if (d > 0) moves.push({ text: '+ ' + (d > 1 ? d + '\u00d7 ' : '') + fmt(size), bg: '#0d2a1a', fg: '#5eea9a' });
+      else if (d < 0) moves.push({ text: '\u2212 ' + (-d > 1 ? -d + '\u00d7 ' : '') + fmt(size), bg: '#2d1114', fg: '#ff7b7b' });
+      n += Math.abs(d);
+    });
+    const chips = [];
+    plates.forEach(([size, , , color], i) => { if (v[i]) chips.push({ text: (v[i] > 1 ? v[i] + '\u00d7 ' : '') + fmt(size), color }); });
+    L.steps.push({
+      title: k === 0 ? 'Start' : 'Step ' + (k + 1),
+      weight: fmt(nums[k]) + ' ' + unit,
+      label: k === 0 ? 'Load on each side' : 'Change on each side',
+      moves, chips, count: n,
+      countText: plural(n, 'plate move'),
+      note: n === 0 ? (k === 0 ? 'Empty bar' : 'No change') : ''
+    });
+    total += n; before = v;
+  }
+  L.ok = true;
+  L.big = plural(total, 'move');
+  const saved = base - total;
+  L.summary = 'Standard loading would take ' + plural(base, 'move') + ' per side. ' + (saved > 0 ? 'This ladder saves ' + saved + ' per side.' : 'Standard loading is already the fastest for this ladder.');
+  return L;
 };
 
 const plateHTML = (c) => {
@@ -108,15 +193,34 @@ const pctHTML = () => {
     '<p class="note">Percentages are of ' + title + ' on a ' + bar + ' ' + unit + ' bar. Weights are rounded to the nearest loadable amount (' + fmt(inc) + ' ' + unit + ' steps). \u2248 means rounded.</p></section>';
 };
 
+
+const ladderHTML = () => {
+  const L = ladderData(parseNums(), SETS[state.unit], state.bar, state.unit, fmt);
+  if (L.hasMsg) return '<p class="msg">' + L.msg + '</p>';
+  const centered = ' style="justify-content:center;margin-top:0"';
+  const summary = '<section class="card"><div class="cap">Fastest ladder</div><div class="big cond">' + L.big + '</div>' +
+    '<div class="cap">Per side, whole ladder</div><p style="margin:0;text-align:center;font-size:13px;line-height:1.5;color:var(--muted)">' + L.summary + '</p></section>';
+  const steps = L.steps.map((s) => {
+    const mv = s.moves.map((m) => '<span class="mv" style="background:' + m.bg + ';color:' + m.fg + '">' + m.text + '</span>').join('') +
+      (s.note ? '<span class="mv" style="background:#0a1224;color:#c9d3e6">' + s.note + '</span>' : '');
+    const on = s.chips.length ? '<div class="cap">On each side now</div><div class="chips"' + centered + '>' +
+      s.chips.map((c) => '<span class="chip"><i style="background:' + c.color + '"></i>' + c.text + '</span>').join('') + '</div>' : '';
+    return '<section class="card"><div class="top"><b class="cond">' + s.title + '</b><span>' + s.countText + '</span></div>' +
+      '<div class="big cond" style="font-size:40px">' + s.weight + '</div>' +
+      '<div class="cap">' + s.label + '</div><div class="chips"' + centered + '>' + mv + '</div>' + on + '</section>';
+  }).join('');
+  return summary + steps + '<p class="note" style="margin:0 4px">Plates are per side. Make the same change on both ends of the bar. The plan picks the plate mix that needs the fewest changes from one step to the next, so a step can use more plates than standard loading.</p>';
+};
+
 const segHTML = (items) => items.map((i) => '<button type="button" data-a="' + i.a + '" data-v="' + i.v + '" aria-pressed="' + i.on + '">' + i.label + '</button>').join('');
 const $ = (id) => document.getElementById(id);
 
 const renderControls = () => {
   $('units').innerHTML = segHTML(['lb', 'kg'].map((u) => ({ a: 'unit', v: u, label: u, on: u === state.unit })));
   $('bars').innerHTML = segHTML(BAR_OPTS[state.unit].map((b) => ({ a: 'bar', v: b, label: b + ' ' + state.unit, on: b === state.bar })));
-  $('tabs').innerHTML = segHTML([{ a: 'page', v: 'calc', label: 'Calculator', on: state.page === 'calc' }, { a: 'page', v: 'pct', label: 'Percentages', on: state.page === 'pct' }]);
+  $('tabs').innerHTML = segHTML([{ a: 'page', v: 'calc', label: 'Calculator', on: state.page === 'calc' }, { a: 'page', v: 'pct', label: 'Percentages', on: state.page === 'pct' }, { a: 'page', v: 'ladder', label: 'Ladder', on: state.page === 'ladder' }]);
 };
-const renderMain = () => { $('main').innerHTML = state.page === 'calc' ? calcHTML() : pctHTML(); };
+const renderMain = () => { $('main').innerHTML = state.page === 'pct' ? pctHTML() : state.page === 'ladder' ? ladderHTML() : calcHTML(); };
 const render = () => { renderControls(); renderMain(); };
 
 document.addEventListener('click', (e) => {
@@ -132,18 +236,21 @@ $('w').value = state.text;
 $('w').addEventListener('input', (e) => { state.text = e.target.value.slice(0, 120); save(); renderMain(); });
 render();
 
-// Install prompt (Android/Chrome) and iPhone hint
+// Install button: uses the browser's install prompt when it is available, otherwise shows the steps.
 let deferred = null;
-window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; $('install').style.display = 'inline-block'; });
-$('install').addEventListener('click', async () => {
-  if (!deferred) return;
-  deferred.prompt();
-  await deferred.userChoice.catch(() => {});
-  deferred = null; $('install').style.display = 'none';
-});
-window.addEventListener('appinstalled', () => { $('install').style.display = 'none'; });
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
 const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone) $('ios').style.display = 'block';
+const btn = $('install'), help = $('help');
+if (standalone) btn.style.display = 'none';
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; });
+btn.addEventListener('click', async () => {
+  if (deferred) { deferred.prompt(); await deferred.userChoice.catch(() => {}); deferred = null; return; }
+  help.innerHTML = isIOS
+    ? 'iPhone: tap the <b>Share</b> button in Safari, then <b>Add to Home Screen</b>, then <b>Add</b>.'
+    : 'Android: tap the browser menu (3 dots), then <b>Install app</b> or <b>Add to Home screen</b>. If you do not see it, open this page in Chrome, not inside Facebook or Messenger.';
+  help.style.display = help.style.display === 'block' ? 'none' : 'block';
+});
+window.addEventListener('appinstalled', () => { btn.style.display = 'none'; help.style.display = 'none'; });
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
